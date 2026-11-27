@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'core',
+    'academico',
 ]
 
 MIDDLEWARE = [
@@ -54,7 +56,7 @@ ROOT_URLCONF = 'sistema_academico.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -102,16 +104,31 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
+LANGUAGE_CODE = "es-ec"
+TIME_ZONE = "America/Guayaquil"
+USE_I18N = True                    # activa las traducciones (admin y mensajes en español)
 USE_TZ = True
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]   # tus CSS, JS e imágenes propias
+
+# ---------- Autenticación ----------
+LOGIN_URL = "login"                        # a dónde mandar a quien no ha iniciado sesión
+LOGIN_REDIRECT_URL = "academico:inicio"    # a dónde ir después de iniciar sesión
+LOGOUT_REDIRECT_URL = "login"              # a dónde ir después de cerrar sesión
+
+# ---------- Mensajes de Django con colores de Bootstrap ----------
+# Django llama "error" a lo que Bootstrap llama "danger" (rojo).
+# Con esto, messages.error() se verá como una alerta roja.
+from django.contrib.messages import constants as messages_constants
+
+MESSAGE_TAGS = {
+    messages_constants.DEBUG: "secondary",
+    messages_constants.ERROR: "danger",
+}

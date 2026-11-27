@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block titulo %}Eliminar matrícula{% endblock %}
+
+{% block contenido %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm border-danger">
+            <div class="card-header bg-danger text-white fw-semibold">
+                <i class="bi bi-exclamation-octagon"></i> Eliminar matrícula
+            </div>
+            <div class="card-body">
+                <p>¿Seguro que deseas eliminar esta matrícula?</p>
+                <ul>
+                    <li><b>Estudiante:</b> {{ object.estudiante.nombre_completo }}</li>
+                    <li><b>Curso:</b> {{ object.seccion.curso.nombre }}</li>
+                    <li><b>Sección:</b> {{ object.seccion.paralelo }} · {{ object.seccion.get_jornada_display }} · {{ object.seccion.periodo.nombre }}</li>
+                </ul>
+                {% if nota %}
+                    {# Aviso: on_delete=CASCADE en Nota.matricula #}
+                    <div class="alert alert-warning py-2 mb-0">
+                        También se eliminará su <b>nota</b> (promedio {{ nota.promedio }}, {{ nota.get_estado_display }}).
+                    </div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-white text-end">
+                {# DeleteView solo borra con POST, nunca con GET (por seguridad) #}
+                <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <a href="{% url 'academico:matricula_detalle' object.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Sí, eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

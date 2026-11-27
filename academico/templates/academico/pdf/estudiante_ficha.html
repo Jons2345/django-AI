@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ficha del estudiante {{ estudiante.cedula }}</title>
+<style>
+    /* ---------- A4 vertical con pie de página fijo ---------- */
+    @page {
+        size: a4 portrait;
+        margin: 1.5cm 1.5cm 2cm 1.5cm;
+        @frame pie_frame {
+            -pdf-frame-content: pie;
+            bottom: 0.7cm;
+            margin-left: 1.5cm;
+            margin-right: 1.5cm;
+            height: 0.8cm;
+        }
+    }
+
+    body { font-family: Helvetica; font-size: 10pt; color: #222222; }
+
+    /* ---------- Encabezado ---------- */
+    .universidad { font-size: 14pt; font-weight: bold; color: #0C4B33; }
+    .facultad    { font-size: 9pt; color: #555555; }
+    .titulo {
+        font-size: 15pt; font-weight: bold; text-align: center;
+        color: #FFFFFF; background-color: #0C4B33;
+        padding: 5px 0 3px 0; margin-top: 8px; margin-bottom: 10px;
+    }
+
+    /* ---------- Secciones ---------- */
+    .subtitulo {
+        font-size: 11pt; font-weight: bold; color: #0C4B33;
+        border-bottom: 1px solid #0C4B33;
+        padding-bottom: 2px; margin-top: 12px; margin-bottom: 6px;
+    }
+    td.etiqueta { font-weight: bold; color: #555555; width: 32%; padding: 2px 0; }
+    td.dato     { padding: 2px 0; }
+    .foto-vacia {
+        border: 1px dashed #AAAAAA; color: #999999;
+        text-align: center; font-size: 8pt; padding: 40px 4px;
+    }
+
+    /* ---------- Tabla de matrículas ---------- */
+    table.datos th {
+        background-color: #0C4B33; color: #FFFFFF; font-weight: bold;
+        text-align: left; padding: 4px 4px 2px 4px; border: 1px solid #0C4B33;
+    }
+    table.datos td { padding: 3px 4px 1px 4px; border: 1px solid #CCCCCC; }
+    .centro    { text-align: center; }
+    .aprobado  { color: #1E7B34; font-weight: bold; }
+    .reprobado { color: #B02A37; font-weight: bold; }
+    .sin-nota  { color: #999999; }
+
+    /* ---------- Firma y pie ---------- */
+    td.firma { border-top: 1px solid #333333; text-align: center; font-size: 9pt; padding-top: 3px; }
+    .generado { font-size: 8pt; color: #666666; }
+    #pie { font-size: 8pt; color: #777777; text-align: right; }
+</style>
+</head>
+<body>
+
+{# El pie fijo de cada página (lo usa el @frame) #}
+<div id="pie">Ficha del estudiante {{ estudiante.cedula }} — Página <pdf:pagenumber> de <pdf:pagecount></div>
+
+{# "with" crea un atajo para no escribir el camino largo cada vez #}
+{% with universidad=estudiante.carrera.facultad.universidad facultad=estudiante.carrera.facultad %}
+
+{# ---------- ENCABEZADO: logo + universidad (lado a lado con una tabla, sin flex) ---------- #}
+<table>
+    <tr>
+        {% if universidad.logo %}
+            <td width="75" valign="middle">
+                {# logo.url = "/media/universidades/..." → link_callback lo convierte en ruta del disco #}
+                <img src="{{ universidad.logo.url }}" height="55">
+            </td>
+        {% endif %}
+        <td valign="middle">
+            <div class="universidad">{{ universidad.nombre }}</div>
+            <div class="facultad">{{ facultad.nombre }} · {{ universidad.ciudad }}</div>
+        </td>
+    </tr>
+</table>
+
+<div class="titulo">FICHA DEL ESTUDIANTE</div>
+
+{# ---------- DATOS PERSONALES + FOTO ---------- #}
+<table>
+    <tr>
+        {# Columna izquierda: datos #}
+        <td valign="top" width="78%">
+            <div class="subtitulo">Datos personales</div>
+            <table>
+                <tr><td class="etiqueta">Cédula:</td><td class="dato">{{ estudiante.cedula }}</td></tr>
+                <tr><td class="etiqueta">Apellidos y nombres:</td><td class="dato">{{ estudiante.nombre_completo }}</td></tr>
+                <tr><td class="etiqueta">Correo electrónico:</td><td class="dato">{{ estudiante.email }}</td></tr>
+                <tr><td class="etiqueta">Teléfono:</td><td class="dato">{{ estudiante.telefono }}</td></tr>
+                <tr><td class="etiqueta">Fecha de nacimiento:</td>
+                    <td class="dato">{{ estudiante.fecha_nacimiento|date:"d/m/Y"|default:"—" }}</td></tr>
+            </table>
+
+            <div class="subtitulo">Datos académicos</div>
+            <table>
+                <tr><td class="etiqueta">Carrera:</td><td class="dato">{{ estudiante.carrera.codigo }} - {{ estudiante.carrera.nombre }}</td></tr>
+                <tr><td class="etiqueta">Facultad:</td><td class="dato">{{ facultad.nombre }}</td></tr>
+                <tr><td class="etiqueta">Universidad:</td><td class="dato">{{ universidad.nombre }} ({{ universidad.siglas }})</td></tr>
+                <tr><td class="etiqueta">Registrado el:</td><td class="dato">{{ estudiante.fecha_creacion|date:"d/m/Y" }}</td></tr>
+            </table>
+        </td>
+
+        {# Columna derecha: foto (o un recuadro si no tiene) #}
+        <td valign="top" width="22%" align="center">
+            {% if estudiante.foto %}
+                <img src="{{ estudiante.foto.url }}" width="95" height="120">
+            {% else %}
+                <div class="foto-vacia">Sin foto</div>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+{% endwith %}
+
+{# ---------- MATRÍCULAS ---------- #}
+<div class="subtitulo">Matrículas ({{ matriculas|length }})</div>
+<table class="datos" repeat="1">
+    <tr>
+        <th width="14%">Periodo</th>
+        <th width="40%">Curso</th>
+        <th width="18%">Jornada</th>
+        <th width="12%" class="centro">Promedio</th>
+        <th width="16%" class="centro">Estado</th>
+    </tr>
+    {% for matricula in matriculas %}
+        <tr>
+            <td>{{ matricula.seccion.periodo.nombre }}</td>
+            <td>{{ matricula.seccion.curso.nombre }}</td>
+            <td>{{ matricula.seccion.paralelo }} - {{ matricula.seccion.get_jornada_display }}</td>
+            {# Si la matrícula no tiene nota, matricula.nota falla en silencio y el "if" da Falso #}
+            {% if matricula.nota %}
+                <td class="centro">{{ matricula.nota.promedio }}</td>
+                <td class="centro {{ matricula.nota.estado }}">{{ matricula.nota.get_estado_display }}</td>
+            {% else %}
+                <td class="centro sin-nota">—</td>
+                <td class="centro sin-nota">Sin nota</td>
+            {% endif %}
+        </tr>
+    {% empty %}
+        <tr><td colspan="5" class="sin-nota">El estudiante no tiene matrículas registradas.</td></tr>
+    {% endfor %}
+</table>
+{# class="centro {{ estado }}" reutiliza el valor "aprobado"/"reprobado" como nombre de la clase CSS #}
+
+{# ---------- FIRMA ---------- #}
+<table>
+    <tr><td height="70" colspan="3"></td></tr>   {# espacio en blanco para firmar #}
+    <tr>
+        <td width="30%"></td>
+        <td width="40%" class="firma">Firma y sello<br>Secretaría académica</td>
+        <td width="30%"></td>
+    </tr>
+</table>
+
+<p class="generado">
+    Documento generado el {{ fecha|date:"d/m/Y" }} a las {{ fecha|date:"H:i" }}
+    por {{ usuario.get_full_name|default:usuario.username }}.
+</p>
+
+</body>
+</html>

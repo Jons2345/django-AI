@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block contenido %}
+<h1 class="h3 mb-3"><i class="bi bi-clipboard-plus"></i> {{ titulo }}</h1>
+
+{# ---------- RESUMEN DE ERRORES ARRIBA (incluye los de Matricula.clean: cupo y carrera) ---------- #}
+{# total_error_count cuenta todos los errores del formset #}
+{% if form.errors or nota_formset.total_error_count %}
+    <div class="alert alert-danger">
+        <p class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle"></i> No se pudo guardar. Revisa lo siguiente:</p>
+        <ul class="mb-0">
+            {# Errores generales: ej. "Ya existe una matrícula con este estudiante y sección" #}
+            {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+            {# Errores de cada campo: aquí salen los de clean(), que vienen en "seccion" #}
+            {% for campo in form %}
+                {% for error in campo.errors %}<li><b>{{ campo.label }}:</b> {{ error }}</li>{% endfor %}
+            {% endfor %}
+            {# Errores de las notas #}
+            {% for error in nota_formset.non_form_errors %}<li>{{ error }}</li>{% endfor %}
+            {% for nota_form in nota_formset %}
+                {% for error in nota_form.non_field_errors %}<li><b>Notas:</b> {{ error }}</li>{% endfor %}
+                {% for campo in nota_form %}
+                    {% for error in campo.errors %}<li><b>Notas – {{ campo.label }}:</b> {{ error }}</li>{% endfor %}
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    {# ---------- MAESTRO: datos de la matrícula ---------- #}
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white fw-semibold"><i class="bi bi-person-vcard"></i> Datos de la matrícula</div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for campo in form %}
+                    <div class="{% if campo.name == 'seccion' %}col-md-5{% else %}col-md-4{% endif %}{% if campo.name == 'fecha' %} col-lg-3{% endif %}">
+                        <label for="{{ campo.id_for_label }}" class="form-label">{{ campo.label }}</label>
+                        {{ campo }}
+                        {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+                        {% for error in campo.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {# ---------- DETALLE: notas (inline formset) ---------- #}
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white fw-semibold"><i class="bi bi-123"></i> Notas</div>
+        <div class="card-body">
+            {# OBLIGATORIO: le dice a Django cuántos formularios hay. Sin esto, el formset falla #}
+            {{ nota_formset.management_form }}
+
+            {% for nota_form in nota_formset %}
+                {# Campos ocultos: id de la nota y la matrícula a la que pertenece #}
+                {% for oculto in nota_form.hidden_fields %}{{ oculto }}{% endfor %}
+
+                <div class="row g-3">
+                    {% for campo in nota_form.visible_fields %}
+                        <div class="col-sm-4 col-lg-2">
+                            <label for="{{ campo.id_for_label }}" class="form-label">{{ campo.label }}</label>
+                            {{ campo }}
+                            {% for error in campo.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+
+                    {# Al editar una nota existente, mostramos su promedio y estado actuales #}
+                    {% if nota_form.instance.pk %}
+                        <div class="col-sm-12 col-lg-4 d-flex align-items-end">
+                            <div>
+                                <span class="text-muted">Actual:</span>
+                                <b>{{ nota_form.instance.promedio }}</b>
+                                {% if nota_form.instance.estado == "aprobado" %}
+                                    <span class="badge text-bg-success">Aprobado</span>
+                                {% else %}
+                                    <span class="badge text-bg-danger">Reprobado</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div class="form-text mt-2">
+                Valores de 0 a 100. El promedio y el estado se calculan solos al guardar
+                (aprueba con {{ nota_minima }} o más). Si dejas las tres en 0 al crear, la matrícula se guarda sin nota.
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Guardar</button>
+        {# Al editar, "Cancelar" vuelve al detalle; al crear, al listado #}
+        {% if object %}
+            <a href="{% url 'academico:matricula_detalle' object.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+        {% else %}
+            <a href="{% url 'academico:matricula_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

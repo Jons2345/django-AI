@@ -1,0 +1,85 @@
+{# core/templates/core/_filtros.html #}
+{# Panel reutilizable de filtros + columnas. Necesita: filtro_form, campos_disponibles, campos_seleccionados #}
+
+{# method="get": los filtros viajan en la URL, así se pueden guardar o compartir #}
+<form method="get" class="card shadow-sm border-0 mb-3">
+    <div class="card-header bg-white fw-semibold">
+        <i class="bi bi-funnel"></i> Filtros
+    </div>
+
+    <div class="card-body">
+        {% if filtro_form %}
+            {# Errores generales del formulario (ej: "desde" mayor que "hasta") #}
+            {% for error in filtro_form.non_field_errors %}
+                <div class="alert alert-danger py-2 small">{{ error }}</div>
+            {% endfor %}
+
+            <div class="row g-3">
+                {# Recorre TODOS los campos del formulario, sea cual sea #}
+                {% for campo in filtro_form %}
+                    <div class="col-sm-6 col-lg-3">
+                        <label for="{{ campo.id_for_label }}" class="form-label small mb-1">{{ campo.label }}</label>
+                        {{ campo }}
+                        {% for error in campo.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {# ---------- Selección de columnas ---------- #}
+        {# <details> es un bloque que se abre y se cierra sin JavaScript #}
+        <details class="mt-3" {% if request.GET.campos %}open{% endif %}>
+            <summary class="fw-semibold small text-primary" style="cursor: pointer;">
+                <i class="bi bi-layout-three-columns"></i> Columnas
+            </summary>
+            <div class="d-flex flex-wrap gap-3 mt-2">
+                {% for ruta, titulo in campos_disponibles %}
+                    <div class="form-check">
+                        {# Todas las casillas se llaman "campos": la vista las lee con getlist("campos") #}
+                        <input class="form-check-input" type="checkbox" name="campos"
+                               value="{{ ruta }}" id="columna_{{ ruta }}"
+                               {% if ruta in campos_seleccionados %}checked{% endif %}>
+                        <label class="form-check-label small" for="columna_{{ ruta }}">{{ titulo }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+        </details>
+    </div>
+
+    <div class="card-footer bg-white text-end">
+        {# Limpiar = volver a la misma página SIN parámetros #}
+        <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-circle"></i> Limpiar
+        </a>
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-search"></i> Filtrar
+        </button>
+    </div>
+</form>
+
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+        <div>
+            {% if puede_exportar %}
+                <a href="?{% if consulta %}{{ consulta }}&{% endif %}exportar=excel"
+                   class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-excel"></i> Excel
+                </a>
+                {# target="_blank" = abrir en otra pestaña; rel="noopener" es por seguridad #}
+                <a href="?{% if consulta %}{{ consulta }}&{% endif %}exportar=pdf"
+                   class="btn btn-danger btn-sm" target="_blank" rel="noopener">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                </a>
+            {% endif %}
+        </div>
+        <div>
+            <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-x-circle"></i> Limpiar
+            </a>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-search"></i> Filtrar
+            </button>
+        </div>
+    </div>
+</form>

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block titulo %}Matrícula{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="bi bi-clipboard-check"></i> Matrícula #{{ matricula.pk }}</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'academico:matricula_editar' matricula.pk %}" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
+        <a href="{% url 'academico:matricula_eliminar' matricula.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Eliminar</a>
+        <a href="{% url 'academico:estudiante_pdf' matricula.estudiante.pk %}" target="_blank" rel="noopener" class="btn btn-outline-danger">
+            <i class="bi bi-file-earmark-person"></i> Ficha PDF
+        </a>
+    </div>
+</div>
+
+<div class="row g-3">
+    {# ---------- Datos de la matrícula ---------- #}
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white fw-semibold">Datos de la matrícula</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Estudiante</dt>
+                    <dd class="col-sm-8">{{ matricula.estudiante.nombre_completo }} <span class="text-muted">({{ matricula.estudiante.cedula }})</span></dd>
+                    <dt class="col-sm-4">Carrera</dt>
+                    <dd class="col-sm-8">{{ matricula.estudiante.carrera.nombre }}</dd>
+                    <dt class="col-sm-4">Curso</dt>
+                    <dd class="col-sm-8">{{ matricula.seccion.curso.codigo }} - {{ matricula.seccion.curso.nombre }}</dd>
+                    <dt class="col-sm-4">Sección</dt>
+                    <dd class="col-sm-8">Paralelo {{ matricula.seccion.paralelo }} · {{ matricula.seccion.get_jornada_display }}</dd>
+                    <dt class="col-sm-4">Periodo</dt>
+                    <dd class="col-sm-8">{{ matricula.seccion.periodo.nombre }}</dd>
+                    <dt class="col-sm-4">Profesor</dt>
+                    <dd class="col-sm-8">{{ matricula.seccion.profesor.nombre_completo }}</dd>
+                    <dt class="col-sm-4">Fecha</dt>
+                    <dd class="col-sm-8">{{ matricula.fecha|date:"d/m/Y" }}</dd>
+                    <dt class="col-sm-4">Registrado por</dt>
+                    <dd class="col-sm-8 mb-0">{{ matricula.user.username|default:"—" }} el {{ matricula.fecha_creacion|date:"d/m/Y H:i" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    {# ---------- Notas ---------- #}
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white fw-semibold">Notas</div>
+            <div class="card-body">
+                {% if nota %}
+                    <table class="table table-sm text-center mb-3">
+                        <thead class="table-light">
+                            <tr><th>Nota 1</th><th>Nota 2</th><th>Nota 3</th><th>Promedio</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ nota.n1 }}</td>
+                                <td>{{ nota.n2 }}</td>
+                                <td>{{ nota.n3 }}</td>
+                                <td class="fw-bold">{{ nota.promedio }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="text-center">
+                        {% if nota.estado == "aprobado" %}
+                            <span class="badge text-bg-success fs-5 px-4"><i class="bi bi-check-circle"></i> Aprobado</span>
+                        {% else %}
+                            <span class="badge text-bg-danger fs-5 px-4"><i class="bi bi-x-circle"></i> Reprobado</span>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-2">Esta matrícula todavía no tiene notas registradas.</p>
+                    <a href="{% url 'academico:matricula_editar' matricula.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus"></i> Registrar notas
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<a href="{% url 'academico:matricula_lista' %}" class="btn btn-link mt-3 px-0"><i class="bi bi-arrow-left"></i> Volver al listado</a>
+{% endblock %}

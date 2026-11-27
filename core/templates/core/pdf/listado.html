@@ -1,0 +1,119 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{{ titulo }}</title>
+<style>
+    /* ---------- Página: A4 horizontal ---------- */
+    @page {
+        size: a4 landscape;
+        margin: 1.2cm 1cm 1.8cm 1cm;   /* arriba, derecha, abajo (espacio para el pie), izquierda */
+
+        /* Un "frame" es una zona fija de la página. Este va abajo y muestra el div con id="pie" */
+        @frame pie_frame {
+            -pdf-frame-content: pie;
+            bottom: 0.6cm;
+            margin-left: 1cm;
+            margin-right: 1cm;
+            height: 0.8cm;
+        }
+    }
+
+    body { font-family: Helvetica; font-size: 9pt; color: #222222; }
+
+    /* ---------- Encabezado del reporte ---------- */
+    .titulo { font-size: 16pt; font-weight: bold; color: #0C4B33; }
+    .info   { font-size: 8.5pt; color: #555555; }
+    .filtros {
+        font-size: 8.5pt;
+        background-color: #F1F5F3;
+        border: 1px solid #C9D8CF;
+        padding: 4px 6px;
+        margin-top: 6px;
+        margin-bottom: 8px;
+    }
+
+    /* ---------- Tabla de datos ---------- */
+    table.datos { width: 100%; }
+    table.datos th {
+        background-color: #0C4B33;
+        color: #FFFFFF;
+        font-weight: bold;
+        text-align: left;
+        padding: 4px 4px 2px 4px;
+        border: 1px solid #0C4B33;
+    }
+    table.datos td {
+        padding: 3px 4px 1px 4px;
+        border: 1px solid #CCCCCC;
+    }
+    td.par { background-color: #F4F4F4; }   /* filas alternadas */
+    .vacio { color: #999999; }
+
+    #pie { font-size: 8pt; color: #777777; text-align: right; }
+</style>
+</head>
+<body>
+
+{# ---------- PIE DE PÁGINA (lo usa el @frame de arriba, se repite en cada hoja) ---------- #}
+<div id="pie">
+    {{ titulo }} — Página <pdf:pagenumber> de <pdf:pagecount>
+</div>
+
+{# ---------- ENCABEZADO: logo + título, lado a lado usando una tabla ---------- #}
+<table>
+    <tr>
+        {% if logo_reporte %}
+            <td width="70" valign="middle">
+                {# {% static %} da "/static/img/logo.png" y link_callback lo convierte en ruta del disco #}
+                <img src="{% static logo_reporte %}" height="45">
+            </td>
+        {% endif %}
+        <td valign="middle">
+            <div class="titulo">{{ titulo }}</div>
+            <div class="info">
+                Generado el {{ fecha|date:"d/m/Y" }} a las {{ fecha|date:"H:i" }}
+                por {{ usuario.get_full_name|default:usuario.username }}
+                &nbsp;·&nbsp; Total de registros: <b>{{ total }}</b>
+            </div>
+        </td>
+    </tr>
+</table>
+
+{# ---------- FILTROS APLICADOS ---------- #}
+<div class="filtros">
+    <b>Filtros:</b>
+    {% if filtros %}
+        {{ filtros|join:" | " }}
+    {% else %}
+        Sin filtros (todos los registros)
+    {% endif %}
+</div>
+
+{# ---------- TABLA ---------- #}
+{# repeat="1": xhtml2pdf repite la PRIMERA fila (los encabezados) en cada página nueva #}
+<table class="datos" repeat="1">
+    <tr>
+        {% for encabezado in encabezados %}
+            <th>{{ encabezado }}</th>
+        {% endfor %}
+    </tr>
+    {% for fila in filas %}
+        <tr>
+            {% for valor in fila %}
+                {# forloop.parentloop = el ciclo de afuera (filas): pinta gris las filas pares #}
+                <td{% if forloop.parentloop.counter|divisibleby:2 %} class="par"{% endif %}>
+                    {% if valor %}{{ valor }}{% else %}<span class="vacio">—</span>{% endif %}
+                </td>
+            {% endfor %}
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="{{ encabezados|length }}" class="vacio">No hay registros con los filtros aplicados.</td>
+        </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

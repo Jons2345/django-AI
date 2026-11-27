@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block titulo %}Estudiantes{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="bi bi-people"></i> Estudiantes</h1>
+    {# paginator.count = total de resultados YA filtrados (de todas las páginas) #}
+    <span class="badge text-bg-secondary fs-6">{{ page_obj.paginator.count }} resultado{{ page_obj.paginator.count|pluralize }}</span>
+</div>
+
+{# ---------- Componente reutilizable de core ---------- #}
+{% include "core/_filtros.html" %}
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover table-striped align-middle mb-0">
+            <thead class="table-primary">
+                <tr>
+                    {# Los encabezados cambian según las columnas elegidas #}
+                    {% for encabezado in encabezados %}
+                        <th>{{ encabezado }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {# Cada fila es (objeto, [valores]). El objeto se usará luego para los botones de acción #}
+                {% for objeto, valores in filas %}
+                    <tr>
+                        {% for valor in valores %}
+                            {# Si el valor está vacío mostramos un guion #}
+                            <td>{% if valor == "" %}<span class="text-muted">—</span>{% else %}{{ valor }}{% endif %}</td>
+                        {% endfor %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="{{ encabezados|length }}" class="text-center text-muted py-4">
+                            <i class="bi bi-search"></i> No se encontraron estudiantes con esos filtros.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer bg-white">
+        {% include "core/_paginacion.html" %}
+    </div>
+</div>
+{% endblock %}
