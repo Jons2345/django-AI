@@ -14,6 +14,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -35,6 +36,9 @@ urlpatterns = [
 
     # Todas las URLs de la app academico empiezan con /academico/
     path("academico/", include("academico.urls")),
+    
+        # La raíz "/" redirige al inicio del sistema (que ya exige login)
+    path("", RedirectView.as_view(pattern_name="academico:inicio", permanent=False)),
 ]
 
 # Solo en desarrollo (DEBUG = True): Django sirve los archivos subidos (logos, fotos)

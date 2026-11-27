@@ -13,7 +13,7 @@ from django.views.generic import (
 
 from core.mixins import ComprobantePdfMixin, ExportarMixin
 
-from .forms import FiltroEstudianteForm, MatriculaForm, NotaFormSet
+from .forms import FiltroEstudianteForm, FiltroMatriculaForm, MatriculaForm, NotaFormSet
 from .models import NOTA_MINIMA_APROBACION, EstadoNota, Estudiante, Matricula, Nota, Periodo
 
 
@@ -138,11 +138,76 @@ def obtener_nota(matricula):
     return getattr(matricula, "nota", None)
 
 
-class MatriculaListView(LoginRequiredMixin, ListView):
-    queryset = MATRICULAS_COMPLETAS
+class MatriculaListView(LoginRequiredMixin, ExportarMixin, ListView):
+    # Mismo orden que en estudiantes: login → filtros/columnas/Excel/PDF → ListView
+    # MATRICULAS_COMPLETAS ya trae con select_related todo lo que se muestra:
+    # estudiante, sección, curso, periodo, profesor y nota.
+    # order_by: para el reporte conviene agrupar por periodo, curso y apellido
+    queryset = MATRICULAS_COMPLETAS.order_by(
+        "-seccion__periodo__fecha_inicio",
+        "seccion__curso__nombre",
+        "estudiante__apellidos",
+        "estudiante__nombres",
+    )
     template_name = "academico/matricula_lista.html"
-    context_object_name = "matriculas"  # en el template se usa "matriculas" en vez de "object_list"
     paginate_by = 10
+
+    # ---------- Exportación ----------
+    titulo_reporte = "Reporte de matrículas y notas"
+    nombre_archivo = "matriculas"
+
+    # ---------- Filtros y columnas ----------
+    filtro_form_class = FiltroMatriculaForm
+    campos_disponibles = [
+        ("estudiante__cedula", "Cédula"),
+        ("estudiante__nombre_completo", "Estudiante"),  # propiedad del modelo: valor_campo la lee igual
+        ("seccion__curso__nombre", "Curso"),
+        ("seccion__paralelo", "Paralelo"),
+        ("seccion__jornada", "Jornada"),           # tiene choices → sale "Diurna"/"Nocturna"
+        ("seccion__periodo__nombre", "Periodo"),
+        ("seccion__profesor", "Profesor"),         # objeto → su __str__ (nombre completo)
+        ("nota__n1", "Nota 1"),                    # si no hay nota → "" (valor_campo lo controla)
+        ("nota__n2", "Nota 2"),
+        ("nota__n3", "Nota 3"),
+        ("nota__promedio", "Promedio"),
+        ("nota__estado", "Estado"),                # choices → "Aprobado"/"Reprobado"
+        ("fecha", "Fecha"),
+    ]
+    campos_por_defecto = [
+        "estudiante__cedula",
+        "estudiante__nombre_completo",
+        "seccion__curso__nombre",
+        "seccion__jornada",
+        "nota__promedio",
+        "nota__estado",
+    ]
+
+    def filtrar(self, queryset, datos):
+        texto = datos.get("texto")
+        if texto:
+            # Cada palabra debe aparecer en la cédula O en los apellidos
+            for palabra in texto.split():
+                queryset = queryset.filter(
+                    Q(estudiante__cedula__icontains=palabra)
+                    | Q(estudiante__apellidos__icontains=palabra)
+                )
+        if datos.get("periodo"):
+            queryset = queryset.filter(seccion__periodo=datos["periodo"])
+        if datos.get("carrera"):
+            # La carrera del CURSO de la sección
+            queryset = queryset.filter(seccion__curso__carrera=datos["carrera"])
+        if datos.get("curso"):
+            queryset = queryset.filter(seccion__curso=datos["curso"])
+        if datos.get("jornada"):
+            queryset = queryset.filter(seccion__jornada=datos["jornada"])
+        if datos.get("estado"):
+            queryset = queryset.filter(nota__estado=datos["estado"])
+        # "is not None" y no "if datos.get(...)": Decimal("0") es falso y se perdería el filtro "desde 0"
+        if datos.get("promedio_desde") is not None:
+            queryset = queryset.filter(nota__promedio__gte=datos["promedio_desde"])
+        if datos.get("promedio_hasta") is not None:
+            queryset = queryset.filter(nota__promedio__lte=datos["promedio_hasta"])
+        return queryset
 
 
 class MatriculaDetailView(LoginRequiredMixin, DetailView):
@@ -261,3 +326,23 @@ class MatriculaDeleteView(LoginRequiredMixin, DeleteView):
         respuesta = super().form_valid(form)  # borra la matrícula (y su nota, por CASCADE)
         messages.success(self.request, f"Se eliminó la matrícula de {nombre}.")
         return respuesta
+    
+    
+class MatriculaPdfView(LoginRequiredMixin, ComprobantePdfMixin, DetailView):
+    # Mismo componente que la ficha del estudiante: solo cambia la configuración
+    # select_related: todo lo que imprime el comprobante, en UNA sola consulta
+    queryset = Matricula.objects.select_related(
+        "estudiante__carrera__facultad__universidad",  # datos del estudiante + logo
+        "seccion__curso",
+        "seccion__periodo",
+        "seccion__profesor",
+        "nota",
+    )
+    template_pdf = "academico/pdf/matricula_comprobante.html"
+    nombre_archivo = "matricula"  # → matricula-<pk>.pdf
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["nota"] = obtener_nota(self.object)          # None si aún no tiene nota
+        context["nota_minima"] = NOTA_MINIMA_APROBACION      # para la regla "Se aprueba con 70/100"
+        return context

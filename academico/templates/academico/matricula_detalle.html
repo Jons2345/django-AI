@@ -7,10 +7,13 @@
     <h1 class="h3 mb-0"><i class="bi bi-clipboard-check"></i> Matrícula #{{ matricula.pk }}</h1>
     <div class="d-flex gap-2">
         <a href="{% url 'academico:matricula_editar' matricula.pk %}" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
-        <a href="{% url 'academico:matricula_eliminar' matricula.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Eliminar</a>
+        <a href="{% url 'academico:matricula_pdf' matricula.pk %}" target="_blank" rel="noopener" class="btn btn-secondary">
+            <i class="bi bi-file-earmark-pdf"></i> Comprobante PDF
+        </a>
         <a href="{% url 'academico:estudiante_pdf' matricula.estudiante.pk %}" target="_blank" rel="noopener" class="btn btn-outline-danger">
             <i class="bi bi-file-earmark-person"></i> Ficha PDF
         </a>
+        <a href="{% url 'academico:matricula_eliminar' matricula.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Eliminar</a>
     </div>
 </div>
 

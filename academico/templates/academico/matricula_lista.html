@@ -5,63 +5,65 @@
 {% block contenido %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0"><i class="bi bi-clipboard-check"></i> Matrículas</h1>
-    <a href="{% url 'academico:matricula_crear' %}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> Nueva matrícula
-    </a>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge text-bg-secondary fs-6">{{ page_obj.paginator.count }} resultado{{ page_obj.paginator.count|pluralize }}</span>
+        <a href="{% url 'academico:matricula_crear' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nueva matrícula
+        </a>
+    </div>
 </div>
+
+{# ---------- Componente de core: filtros + columnas + Excel + PDF ---------- #}
+{% include "core/_filtros.html" %}
 
 <div class="card shadow-sm border-0">
     <div class="table-responsive">
         <table class="table table-hover table-striped align-middle mb-0">
             <thead class="table-primary">
                 <tr>
-                    <th>Estudiante</th>
-                    <th>Curso</th>
-                    <th>Sección</th>
-                    <th>Periodo</th>
-                    <th>Fecha</th>
-                    <th class="text-center">Promedio</th>
-                    <th class="text-center">Estado</th>
+                    {% for encabezado in encabezados %}
+                        <th>{{ encabezado }}</th>
+                    {% endfor %}
                     <th class="text-end">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                {% for matricula in matriculas %}
+                {% for objeto, valores in filas %}
                     <tr>
-                        <td>{{ matricula.estudiante.nombre_completo }}</td>
-                        <td>{{ matricula.seccion.curso.codigo }} - {{ matricula.seccion.curso.nombre }}</td>
-                        <td>{{ matricula.seccion.paralelo }} · {{ matricula.seccion.get_jornada_display }}</td>
-                        <td>{{ matricula.seccion.periodo.nombre }}</td>
-                        <td>{{ matricula.fecha|date:"d/m/Y" }}</td>
-                        {# Si no tiene nota, matricula.nota falla en silencio y el "if" da Falso #}
-                        {% if matricula.nota %}
-                            <td class="text-center">{{ matricula.nota.promedio }}</td>
-                            <td class="text-center">
-                                {% if matricula.nota.estado == "aprobado" %}
+                        {% for valor in valores %}
+                            <td>
+                                {# Estado: valor_campo ya devuelve el texto del choice ("Aprobado"/"Reprobado") #}
+                                {% if valor == "Aprobado" %}
                                     <span class="badge text-bg-success">Aprobado</span>
-                                {% else %}
+                                {% elif valor == "Reprobado" %}
                                     <span class="badge text-bg-danger">Reprobado</span>
+                                {% elif valor == "" %}
+                                    <span class="text-muted">—</span>
+                                {% else %}
+                                    {{ valor }}
                                 {% endif %}
                             </td>
-                        {% else %}
-                            <td class="text-center text-muted">—</td>
-                            <td class="text-center"><span class="badge text-bg-secondary">Sin nota</span></td>
-                        {% endif %}
+                        {% endfor %}
                         <td class="text-end text-nowrap">
-                            <a href="{% url 'academico:matricula_detalle' matricula.pk %}" class="btn btn-sm btn-outline-primary" title="Ver"><i class="bi bi-eye"></i></a>
-                            <a href="{% url 'academico:matricula_editar' matricula.pk %}" class="btn btn-sm btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
-                            <a href="{% url 'academico:matricula_eliminar' matricula.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></a>
+                            <a href="{% url 'academico:matricula_detalle' objeto.pk %}" class="btn btn-sm btn-outline-primary" title="Ver"><i class="bi bi-eye"></i></a>
+                            <a href="{% url 'academico:matricula_editar' objeto.pk %}" class="btn btn-sm btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+                            {# target="_blank": el comprobante se abre en otra pestaña #}
+                            <a href="{% url 'academico:matricula_pdf' objeto.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary" title="Comprobante PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                            <a href="{% url 'academico:matricula_eliminar' objeto.pk %}" class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></a>
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="8" class="text-center text-muted py-4">No hay matrículas registradas.</td></tr>
+                    <tr>
+                        <td colspan="{{ encabezados|length|add:1 }}" class="text-center text-muted py-4">
+                            <i class="bi bi-search"></i> No se encontraron matrículas con esos filtros.
+                        </td>
+                    </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-        <small class="text-muted">{{ page_obj.paginator.count }} matrícula{{ page_obj.paginator.count|pluralize }}</small>
-        {# Componente de core. Aquí no hay "consulta", así que los enlaces quedan como ?page=2 #}
+    <div class="card-footer bg-white">
+        {# Ahora sí hay "consulta": la paginación conserva filtros y columnas #}
         {% include "core/_paginacion.html" %}
     </div>
 </div>

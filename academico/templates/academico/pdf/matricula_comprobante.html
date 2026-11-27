@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Comprobante de matrícula N.º {{ matricula.pk }}</title>
+<style>
+    /* ---------- A4 vertical con pie fijo ---------- */
+    @page {
+        size: a4 portrait;
+        margin: 1.5cm 1.5cm 2cm 1.5cm;
+        @frame pie_frame {
+            -pdf-frame-content: pie;
+            bottom: 0.7cm;
+            margin-left: 1.5cm;
+            margin-right: 1.5cm;
+            height: 0.8cm;
+        }
+    }
+
+    body { font-family: Helvetica; font-size: 10pt; color: #222222; }
+
+    /* ---------- Encabezado ---------- */
+    .universidad { font-size: 14pt; font-weight: bold; color: #0C4B33; }
+    .facultad    { font-size: 9pt; color: #555555; }
+    .titulo {
+        font-size: 14pt; font-weight: bold; text-align: center;
+        color: #FFFFFF; background-color: #0C4B33;
+        padding: 5px 0 3px 0; margin-top: 8px; margin-bottom: 4px;
+    }
+    .fecha-matricula { text-align: center; font-size: 9pt; color: #555555; margin-bottom: 8px; }
+
+    /* ---------- Bloques de datos ---------- */
+    .subtitulo {
+        font-size: 11pt; font-weight: bold; color: #0C4B33;
+        border-bottom: 1px solid #0C4B33;
+        padding-bottom: 2px; margin-top: 12px; margin-bottom: 6px;
+    }
+    td.etiqueta { font-weight: bold; color: #555555; padding: 2px 0; }
+    td.dato     { padding: 2px 0; }
+
+    /* ---------- Tabla de notas ---------- */
+    table.notas th {
+        background-color: #0C4B33; color: #FFFFFF; font-weight: bold;
+        text-align: center; padding: 5px 4px 3px 4px; border: 1px solid #0C4B33;
+    }
+    table.notas td {
+        text-align: center; font-size: 12pt;
+        padding: 6px 4px 4px 4px; border: 1px solid #CCCCCC;
+    }
+    td.promedio { font-weight: bold; }
+    /* El nombre de la clase es el mismo valor guardado: "aprobado" o "reprobado" */
+    td.aprobado  { color: #FFFFFF; background-color: #1E7B34; font-weight: bold; }
+    td.reprobado { color: #FFFFFF; background-color: #B02A37; font-weight: bold; }
+    .sin-nota {
+        border: 1px dashed #AAAAAA; color: #777777;
+        text-align: center; padding: 10px; margin-top: 4px;
+    }
+    .regla { font-size: 9pt; color: #555555; margin-top: 5px; }
+
+    /* ---------- Firmas y pie ---------- */
+    td.firma { border-top: 1px solid #333333; text-align: center; font-size: 9pt; padding-top: 3px; }
+    .generado { font-size: 8pt; color: #666666; margin-top: 14px; }
+    #pie { font-size: 8pt; color: #777777; text-align: right; }
+</style>
+</head>
+<body>
+
+<div id="pie">Comprobante de matrícula N.º {{ matricula.pk }} — Página <pdf:pagenumber> de <pdf:pagecount></div>
+
+{# Atajos para no escribir caminos largos #}
+{% with estudiante=matricula.estudiante seccion=matricula.seccion %}
+{% with universidad=estudiante.carrera.facultad.universidad facultad=estudiante.carrera.facultad %}
+
+{# ---------- ENCABEZADO: logo + universidad ---------- #}
+<table>
+    <tr>
+        {% if universidad.logo %}
+            <td width="75" valign="middle">
+                {# link_callback convierte /media/... en la ruta del disco #}
+                <img src="{{ universidad.logo.url }}" height="55">
+            </td>
+        {% endif %}
+        <td valign="middle">
+            <div class="universidad">{{ universidad.nombre }}</div>
+            <div class="facultad">{{ facultad.nombre }} · {{ universidad.ciudad }}</div>
+        </td>
+    </tr>
+</table>
+
+<div class="titulo">COMPROBANTE DE MATRÍCULA N.º {{ matricula.pk }}</div>
+<div class="fecha-matricula">Fecha de matrícula: {{ matricula.fecha|date:"d/m/Y" }}</div>
+
+{# ---------- DATOS DEL ESTUDIANTE ---------- #}
+<div class="subtitulo">Datos del estudiante</div>
+<table>
+    <tr>
+        <td class="etiqueta" width="18%">Cédula:</td>
+        <td class="dato" width="32%">{{ estudiante.cedula }}</td>
+        <td class="etiqueta" width="18%">Correo:</td>
+        <td class="dato" width="32%">{{ estudiante.email }}</td>
+    </tr>
+    <tr>
+        <td class="etiqueta">Estudiante:</td>
+        <td class="dato" colspan="3">{{ estudiante.nombre_completo }}</td>
+    </tr>
+    <tr>
+        <td class="etiqueta">Carrera:</td>
+        <td class="dato" colspan="3">{{ estudiante.carrera.codigo }} - {{ estudiante.carrera.nombre }}</td>
+    </tr>
+</table>
+
+{# ---------- DATOS DE LA SECCIÓN ---------- #}
+<div class="subtitulo">Datos de la sección</div>
+<table>
+    <tr>
+        <td class="etiqueta" width="18%">Curso:</td>
+        <td class="dato" width="32%">{{ seccion.curso.codigo }} - {{ seccion.curso.nombre }}</td>
+        <td class="etiqueta" width="18%">Créditos:</td>
+        <td class="dato" width="32%">{{ seccion.curso.creditos }}</td>
+    </tr>
+    <tr>
+        <td class="etiqueta">Paralelo:</td>
+        <td class="dato">{{ seccion.paralelo }}</td>
+        <td class="etiqueta">Jornada:</td>
+        <td class="dato">{{ seccion.get_jornada_display }}</td>
+    </tr>
+    <tr>
+        <td class="etiqueta">Periodo:</td>
+        <td class="dato">{{ seccion.periodo.nombre }}
+            ({{ seccion.periodo.fecha_inicio|date:"d/m/Y" }} al {{ seccion.periodo.fecha_fin|date:"d/m/Y" }})</td>
+        <td class="etiqueta">Profesor:</td>
+        <td class="dato">{{ seccion.profesor.titulo }} {{ seccion.profesor.nombre_completo }}</td>
+    </tr>
+</table>
+
+{# ---------- NOTAS ---------- #}
+<div class="subtitulo">Calificaciones</div>
+{% if nota %}
+    <table class="notas">
+        <tr>
+            <th width="17%">Nota 1</th>
+            <th width="17%">Nota 2</th>
+            <th width="17%">Nota 3</th>
+            <th width="20%">Promedio</th>
+            <th width="29%">Estado</th>
+        </tr>
+        <tr>
+            <td>{{ nota.n1 }}</td>
+            <td>{{ nota.n2 }}</td>
+            <td>{{ nota.n3 }}</td>
+            <td class="promedio">{{ nota.promedio }}</td>
+            {# Verde si "aprobado", rojo si "reprobado" (ver CSS) #}
+            <td class="{{ nota.estado }}">{{ nota.get_estado_display|upper }}</td>
+        </tr>
+    </table>
+{% else %}
+    <div class="sin-nota">Esta matrícula todavía no tiene calificaciones registradas.</div>
+{% endif %}
+{# floatformat:0 → "70" en vez de "70,00" #}
+<div class="regla">
+    Se aprueba con {{ nota_minima|floatformat:0 }}/100. El promedio es la media de las tres notas, redondeada a 2 decimales.
+</div>
+
+{# ---------- FIRMAS (dos columnas con una tabla) ---------- #}
+<table>
+    <tr><td height="80" colspan="5"></td></tr>  {# espacio para firmar #}
+    <tr>
+        <td width="7%"></td>
+        <td width="36%" class="firma">Secretaría académica<br>Firma y sello</td>
+        <td width="14%"></td>
+        <td width="36%" class="firma">{{ estudiante.nombre_completo }}<br>C.I. {{ estudiante.cedula }}</td>
+        <td width="7%"></td>
+    </tr>
+</table>
+
+{% endwith %}
+{% endwith %}
+
+<p class="generado">
+    Documento generado el {{ fecha|date:"d/m/Y" }} a las {{ fecha|date:"H:i" }}
+    por {{ usuario.get_full_name|default:usuario.username }}.
+</p>
+
+</body>
+</html>

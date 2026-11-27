@@ -21,4 +21,5 @@ urlpatterns = [
     path("matriculas/<int:pk>/", views.MatriculaDetailView.as_view(), name="matricula_detalle"),
     path("matriculas/<int:pk>/editar/", views.MatriculaUpdateView.as_view(), name="matricula_editar"),
     path("matriculas/<int:pk>/eliminar/", views.MatriculaDeleteView.as_view(), name="matricula_eliminar"),
+    path("matriculas/<int:pk>/pdf/", views.MatriculaPdfView.as_view(), name="matricula_pdf"),
 ]

@@ -8,7 +8,7 @@ from django.forms import inlineformset_factory
 
 from core.utils import aplicar_estilos_bootstrap
 
-from .models import Carrera, Facultad, Matricula, Nota, Seccion
+from .models import Carrera, Curso, EstadoNota, Facultad, Jornada, Matricula, Nota, Periodo, Seccion
 
 
 class FiltroEstudianteForm(forms.Form):
@@ -127,3 +127,47 @@ NotaFormSet = inlineformset_factory(
     max_num=1,          # nunca más de 1
     can_delete=False,   # no se muestra la casilla "eliminar"
 )
+
+
+# ============================================================
+# FILTRO DE MATRÍCULAS
+# ============================================================
+class FiltroMatriculaForm(forms.Form):
+    # Todo opcional (required=False): el usuario llena solo lo que quiera filtrar
+
+    texto = forms.CharField(
+        required=False,
+        label="Buscar",
+        widget=forms.TextInput(attrs={"placeholder": "Cédula o apellido del estudiante"}),
+    )
+    periodo = forms.ModelChoiceField(queryset=Periodo.objects.all(), required=False, empty_label="Todos")
+    carrera = forms.ModelChoiceField(queryset=Carrera.objects.all(), required=False, empty_label="Todas")
+    curso = forms.ModelChoiceField(queryset=Curso.objects.all(), required=False, empty_label="Todos")
+    # ChoiceField con las opciones del TextChoices + una opción vacía al inicio
+    jornada = forms.ChoiceField(
+        choices=[("", "Todas")] + Jornada.choices,
+        required=False,
+    )
+    estado = forms.ChoiceField(
+        choices=[("", "Todos")] + EstadoNota.choices,
+        required=False,
+    )
+    promedio_desde = forms.DecimalField(
+        required=False, min_value=0, max_value=100, decimal_places=2,
+        label="Promedio desde",
+        widget=forms.NumberInput(attrs={"step": "0.01", "placeholder": "0"}),
+    )
+    promedio_hasta = forms.DecimalField(
+        required=False, min_value=0, max_value=100, decimal_places=2,
+        label="Promedio hasta",
+        widget=forms.NumberInput(attrs={"step": "0.01", "placeholder": "100"}),
+    )
+
+    def clean(self):
+        datos = super().clean()
+        desde = datos.get("promedio_desde")
+        hasta = datos.get("promedio_hasta")
+        # "is not None" porque 0 también es un valor válido
+        if desde is not None and hasta is not None and desde > hasta:
+            raise ValidationError("'Promedio desde' no puede ser mayor que 'Promedio hasta'.")
+        return datos
