@@ -8,7 +8,38 @@ from django.forms import inlineformset_factory
 
 from core.utils import aplicar_estilos_bootstrap
 
-from .models import Carrera, Curso, EstadoNota, Facultad, Jornada, Matricula, Nota, Periodo, Seccion
+from .models import Carrera, Curso, EstadoNota, Estudiante, Facultad, Jornada, Matricula, Nota, Periodo, Seccion
+
+# ============================================================
+# ESTUDIANTE (formulario para crear y editar)
+# ============================================================
+class EstudianteForm(forms.ModelForm):
+    class Meta:
+        model = Estudiante
+        fields = [
+            "cedula", "nombres", "apellidos", "email", "telefono",
+            "fecha_nacimiento", "carrera", "foto",
+        ]
+        widgets = {
+            # type="date" muestra el calendario del navegador.
+            # format="%Y-%m-%d" es el formato que ese calendario entiende: sin él,
+            # la fecha aparece VACÍA al editar.
+            "fecha_nacimiento": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Carrera muestra "SOF - Ingeniería de Software"; ordenamos por nombre
+        self.fields["carrera"].queryset = Carrera.objects.order_by("nombre")
+        aplicar_estilos_bootstrap(self)  # componente de core: clases form-control / form-select
+
+    def clean_cedula(self):
+        # clean_<campo>() valida UN solo campo. Lo que devuelve es el valor que se guarda.
+        cedula = self.cleaned_data["cedula"].strip()  # strip() quita espacios al inicio y al final
+        # isdigit() → True solo si TODOS los caracteres son números
+        if not cedula.isdigit() or len(cedula) != 10:
+            raise ValidationError("La cédula debe tener exactamente 10 números.")
+        return cedula
 
 
 class FiltroEstudianteForm(forms.Form):

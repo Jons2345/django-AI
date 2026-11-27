@@ -119,7 +119,7 @@ class CursoAdmin(BaseAdmin):
 # ============================================================
 @admin.register(Profesor)
 class ProfesorAdmin(BaseAdmin):
-    list_display = ("cedula", "nombre_completo", "email", "titulo")
+    list_display = ("cedula", "apellidos", "nombres", "email", "titulo")
     search_fields = ("cedula", "nombres", "apellidos", "email")
 
 

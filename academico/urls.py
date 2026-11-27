@@ -9,10 +9,15 @@ from . import views
 app_name = "academico"
 
 urlpatterns = [
-    path("", views.InicioView.as_view(), name="inicio"),
+    path("", views.InicioView.as_view(), name="inicio"),  # → /academico/
 
     # ---------- Estudiantes ----------
     path("estudiantes/", views.EstudianteListView.as_view(), name="estudiante_lista"),
+    path("estudiantes/crear/", views.EstudianteCreateView.as_view(), name="estudiante_crear"),
+    # <int:pk> captura el número de la URL y la vista lo usa para buscar el estudiante
+    path("estudiantes/<int:pk>/", views.EstudianteDetailView.as_view(), name="estudiante_detalle"),
+    path("estudiantes/<int:pk>/editar/", views.EstudianteUpdateView.as_view(), name="estudiante_editar"),
+    path("estudiantes/<int:pk>/eliminar/", views.EstudianteDeleteView.as_view(), name="estudiante_eliminar"),
     path("estudiantes/<int:pk>/pdf/", views.EstudiantePdfView.as_view(), name="estudiante_pdf"),
 
     # ---------- Matrículas ----------

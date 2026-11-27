@@ -3,17 +3,20 @@
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, ProtectedError, Q
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView,
 )
 
-from core.mixins import ComprobantePdfMixin, ExportarMixin
+from core.mixins import ComprobantePdfMixin, ExportarMixin, UsuarioRegistroMixin
 
-from .forms import FiltroEstudianteForm, FiltroMatriculaForm, MatriculaForm, NotaFormSet
+from .forms import (
+    EstudianteForm, FiltroEstudianteForm, FiltroMatriculaForm, MatriculaForm, NotaFormSet,
+)
 from .models import NOTA_MINIMA_APROBACION, EstadoNota, Estudiante, Matricula, Nota, Periodo
 
 
@@ -21,19 +24,30 @@ from .models import NOTA_MINIMA_APROBACION, EstadoNota, Estudiante, Matricula, N
 # INICIO
 # ============================================================
 class InicioView(LoginRequiredMixin, TemplateView):
+    # LoginRequiredMixin va PRIMERO: si no iniciaste sesión, te manda a LOGIN_URL
     template_name = "academico/inicio.html"
 
     def get_context_data(self, **kwargs):
+        # get_context_data arma el diccionario de variables que llega al template
         context = super().get_context_data(**kwargs)
+
+        # .first() trae el periodo activo MÁS RECIENTE, porque Periodo se ordena por -fecha_inicio
         periodo_activo = Periodo.objects.filter(activo=True).first()
+        # Si hay periodo activo, contamos sus secciones; si no, 0
         secciones_periodo = periodo_activo.secciones.count() if periodo_activo else 0
+
+        # aggregate() hace los dos conteos en UNA sola consulta a la base de datos:
+        #   total     → todas las notas
+        #   aprobados → solo las que cumplen filter=Q(estado="aprobado")
         resumen = Nota.objects.aggregate(
             total=Count("id"),
             aprobados=Count("id", filter=Q(estado=EstadoNota.APROBADO)),
         )
         total_notas = resumen["total"]
         aprobados = resumen["aprobados"]
+        # "if total_notas" evita dividir para cero cuando todavía no hay notas
         porcentaje = round(aprobados * 100 / total_notas, 1) if total_notas else 0
+
         context.update({
             "total_estudiantes": Estudiante.objects.count(),
             "periodo_activo": periodo_activo,
@@ -50,13 +64,17 @@ class InicioView(LoginRequiredMixin, TemplateView):
 # ESTUDIANTES
 # ============================================================
 class EstudianteListView(LoginRequiredMixin, ExportarMixin, ListView):
-    # Orden de herencia: 1) exige login, 2) agrega filtros/columnas, 3) el ListView normal
+    # Orden de herencia: 1) exige login, 2) filtros/columnas/Excel/PDF, 3) el ListView normal
     model = Estudiante
     # select_related trae carrera y facultad en la MISMA consulta (evita 1 consulta extra por fila)
     queryset = Estudiante.objects.select_related("carrera__facultad")
     template_name = "academico/estudiante_lista.html"
     paginate_by = 10  # 10 estudiantes por página
-    logo_reporte = "img/logo.png"  # archivo en static/img/logo.png
+
+    # ---------- Exportación ----------
+    titulo_reporte = "Listado de estudiantes"
+    nombre_archivo = "estudiantes"
+    # logo_reporte = "img/logo.png"  # quita el # cuando copies una imagen en static/img/logo.png
 
     # ---------- Configuración del componente de filtros ----------
     filtro_form_class = FiltroEstudianteForm
@@ -94,8 +112,69 @@ class EstudianteListView(LoginRequiredMixin, ExportarMixin, ListView):
         if datos.get("nacido_hasta"):
             queryset = queryset.filter(fecha_nacimiento__lte=datos["nacido_hasta"])  # lte = <=
         return queryset
-    
-    
+
+
+class EstudianteCreateView(LoginRequiredMixin, UsuarioRegistroMixin, SuccessMessageMixin, CreateView):
+    # Orden de herencia (Prompt 4): login → pone el user → mensaje de éxito → la vista genérica AL FINAL.
+    # Los mixins van ANTES de CreateView para que SU form_valid() se ejecute primero (orden MRO).
+    model = Estudiante
+    form_class = EstudianteForm
+    template_name = "academico/estudiante_form.html"
+    # reverse_lazy y no reverse: cuando Python lee la clase, las URLs todavía no están cargadas
+    success_url = reverse_lazy("academico:estudiante_lista")
+    # SuccessMessageMixin rellena %(campo)s con los datos del formulario
+    success_message = "Estudiante %(apellidos)s %(nombres)s registrado correctamente."
+    extra_context = {"titulo": "Nuevo estudiante"}  # variable fija para el template
+
+
+class EstudianteUpdateView(LoginRequiredMixin, UsuarioRegistroMixin, SuccessMessageMixin, UpdateView):
+    # Mismo orden que la de crear. UsuarioRegistroMixin NO cambia el user al editar
+    # (solo lo pone si está vacío): así se conserva quién lo REGISTRÓ.
+    model = Estudiante
+    form_class = EstudianteForm
+    template_name = "academico/estudiante_form.html"
+    success_url = reverse_lazy("academico:estudiante_lista")
+    success_message = "Estudiante %(apellidos)s %(nombres)s actualizado correctamente."
+    extra_context = {"titulo": "Editar estudiante"}
+
+
+class EstudianteDetailView(LoginRequiredMixin, DetailView):
+    # queryset (y no model) para traer carrera, facultad y universidad en UNA consulta
+    queryset = Estudiante.objects.select_related("carrera__facultad__universidad")
+    template_name = "academico/estudiante_detalle.html"
+    # DetailView llama al objeto "estudiante" en el template (por el nombre del modelo)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Sus matrículas con la sección, el curso, el periodo y la nota (sin consultas repetidas)
+        context["matriculas"] = (
+            self.object.matriculas
+            .select_related("seccion__curso", "seccion__periodo", "nota")
+            .order_by("-seccion__periodo__fecha_inicio", "seccion__curso__nombre")
+        )
+        return context
+
+
+class EstudianteDeleteView(LoginRequiredMixin, DeleteView):
+    # DeleteView: con GET muestra la confirmación; SOLO con POST borra (por seguridad)
+    model = Estudiante
+    template_name = "academico/estudiante_eliminar.html"
+    success_url = reverse_lazy("academico:estudiante_lista")
+
+    def form_valid(self, form):
+        # self.object es el estudiante. Guardamos el nombre ANTES de borrarlo, para el mensaje
+        nombre = self.object.nombre_completo
+        try:
+            respuesta = super().form_valid(form)  # aquí se intenta borrar
+        except ProtectedError:
+            # Matricula.estudiante tiene on_delete=PROTECT: Django NO deja borrar
+            # a un estudiante que tiene matrículas y lanza ProtectedError.
+            messages.error(self.request, "No se puede eliminar: tiene matrículas.")
+            return redirect("academico:estudiante_detalle", pk=self.object.pk)
+        messages.success(self.request, f"Se eliminó al estudiante {nombre}.")
+        return respuesta
+
+
 class EstudiantePdfView(LoginRequiredMixin, ComprobantePdfMixin, DetailView):
     # Orden: 1) exige login, 2) cambia HTML por PDF, 3) DetailView busca el estudiante por <pk>
     model = Estudiante
@@ -118,11 +197,14 @@ class EstudiantePdfView(LoginRequiredMixin, ComprobantePdfMixin, DetailView):
             .order_by("-seccion__periodo__fecha_inicio", "seccion__curso__nombre")
         )
         return context
-    
+
+
 # ============================================================
 # MATRÍCULAS
 # ============================================================
-# Consulta reutilizable: la matrícula con TODO lo que muestran las pantallas
+# Consulta reutilizable: la matrícula con TODO lo que muestran las pantallas.
+# Un queryset es "perezoso": esta línea NO consulta la base de datos al cargar el archivo.
+# Cada vista hace su propia copia al usarlo, así que no se comparten resultados viejos.
 MATRICULAS_COMPLETAS = Matricula.objects.select_related(
     "estudiante__carrera",
     "seccion__curso",
@@ -133,7 +215,10 @@ MATRICULAS_COMPLETAS = Matricula.objects.select_related(
 
 
 def obtener_nota(matricula):
-    """Devuelve la nota de la matrícula o None si todavía no tiene."""
+    """
+    Devuelve la nota de la matrícula o None si todavía no tiene.
+    OJO: es una función de AYUDA, NO una vista (las vistas son todas clases).
+    """
     # Si no hay nota, matricula.nota lanza un error; getattr con None lo evita
     return getattr(matricula, "nota", None)
 
@@ -211,6 +296,7 @@ class MatriculaListView(LoginRequiredMixin, ExportarMixin, ListView):
 
 
 class MatriculaDetailView(LoginRequiredMixin, DetailView):
+    # queryset (y no model) para usar el select_related de MATRICULAS_COMPLETAS
     queryset = MATRICULAS_COMPLETAS
     template_name = "academico/matricula_detalle.html"
     # DetailView llama al objeto "matricula" en el template
@@ -287,11 +373,14 @@ class MatriculaNotaMixin:
         )
 
     def get_success_url(self):
-        # Después de guardar, vamos al detalle de la matrícula
+        # Aquí sí sirve reverse (no reverse_lazy): este método se ejecuta al guardar,
+        # cuando las URLs ya están cargadas. Después de guardar, vamos al detalle.
         return reverse("academico:matricula_detalle", kwargs={"pk": self.object.pk})
 
 
 class MatriculaCreateView(LoginRequiredMixin, MatriculaNotaMixin, CreateView):
+    # MatriculaNotaMixin va ANTES de CreateView para que SU post() y SU get_context_data()
+    # se ejecuten primero (orden MRO de Python: de izquierda a derecha)
     titulo = "Nueva matrícula"
     mensaje_exito = "Matrícula registrada correctamente."
 
@@ -301,6 +390,7 @@ class MatriculaCreateView(LoginRequiredMixin, MatriculaNotaMixin, CreateView):
 
 
 class MatriculaUpdateView(LoginRequiredMixin, MatriculaNotaMixin, UpdateView):
+    # Mismo orden que la de crear: el mixin antes de la vista genérica
     queryset = MATRICULAS_COMPLETAS
     titulo = "Editar matrícula"
     mensaje_exito = "Matrícula actualizada correctamente."
@@ -311,8 +401,10 @@ class MatriculaUpdateView(LoginRequiredMixin, MatriculaNotaMixin, UpdateView):
 
 
 class MatriculaDeleteView(LoginRequiredMixin, DeleteView):
+    # DeleteView: con GET muestra la confirmación; SOLO con POST borra (por seguridad)
     queryset = MATRICULAS_COMPLETAS
     template_name = "academico/matricula_confirmar_eliminar.html"
+    # reverse_lazy y no reverse: cuando Python lee la clase, las URLs todavía no están cargadas
     success_url = reverse_lazy("academico:matricula_lista")
 
     def get_context_data(self, **kwargs):
@@ -326,8 +418,8 @@ class MatriculaDeleteView(LoginRequiredMixin, DeleteView):
         respuesta = super().form_valid(form)  # borra la matrícula (y su nota, por CASCADE)
         messages.success(self.request, f"Se eliminó la matrícula de {nombre}.")
         return respuesta
-    
-    
+
+
 class MatriculaPdfView(LoginRequiredMixin, ComprobantePdfMixin, DetailView):
     # Mismo componente que la ficha del estudiante: solo cambia la configuración
     # select_related: todo lo que imprime el comprobante, en UNA sola consulta

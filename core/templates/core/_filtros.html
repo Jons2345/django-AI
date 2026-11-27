@@ -48,20 +48,12 @@
         </details>
     </div>
 
-    <div class="card-footer bg-white text-end">
-        {# Limpiar = volver a la misma página SIN parámetros #}
-        <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-x-circle"></i> Limpiar
-        </a>
-        <button type="submit" class="btn btn-primary btn-sm">
-            <i class="bi bi-search"></i> Filtrar
-        </button>
-    </div>
-</form>
-
-        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
         <div>
+            {# Solo aparece en vistas que usan ExportarMixin #}
             {% if puede_exportar %}
+                {# Mismos filtros y columnas de la tabla + exportar=... #}
+                {# El "if" evita una URL rara como "?&exportar=excel" cuando no hay filtros #}
                 <a href="?{% if consulta %}{{ consulta }}&{% endif %}exportar=excel"
                    class="btn btn-success btn-sm">
                     <i class="bi bi-file-earmark-excel"></i> Excel
@@ -74,6 +66,7 @@
             {% endif %}
         </div>
         <div>
+            {# Limpiar = volver a la misma página SIN parámetros #}
             <a href="{{ request.path }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-x-circle"></i> Limpiar
             </a>

@@ -82,7 +82,7 @@
         {% endif %}
         <td valign="middle">
             <div class="universidad">{{ universidad.nombre }}</div>
-            <div class="facultad">{{ facultad.nombre }} · {{ universidad.ciudad }}</div>
+            <div class="facultad">{{ facultad.nombre }} - {{ universidad.ciudad }}</div>
         </td>
     </tr>
 </table>
@@ -129,7 +129,7 @@
         <td class="dato">{{ seccion.periodo.nombre }}
             ({{ seccion.periodo.fecha_inicio|date:"d/m/Y" }} al {{ seccion.periodo.fecha_fin|date:"d/m/Y" }})</td>
         <td class="etiqueta">Profesor:</td>
-        <td class="dato">{{ seccion.profesor.titulo }} {{ seccion.profesor.nombre_completo }}</td>
+        <td class="dato">{{ seccion.profesor }}{% if seccion.profesor.titulo %} ({{ seccion.profesor.titulo }}){% endif %}</td>
     </tr>
 </table>
 

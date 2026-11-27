@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block titulo %}{{ estudiante.nombre_completo }}{% endblock %}
+
+{% block contenido %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="bi bi-person-vcard"></i> {{ estudiante.nombre_completo }}</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'academico:estudiante_editar' estudiante.pk %}" class="btn btn-warning"><i class="bi bi-pencil"></i> Editar</a>
+        {# Botón "Ficha PDF" en el detalle (lo pide el Prompt 8) #}
+        <a href="{% url 'academico:estudiante_pdf' estudiante.pk %}" target="_blank" rel="noopener" class="btn btn-danger">
+            <i class="bi bi-file-earmark-person"></i> Ficha PDF
+        </a>
+        <a href="{% url 'academico:estudiante_eliminar' estudiante.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Eliminar</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    {# ---------- Foto ---------- #}
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center">
+                {# Si tiene foto la mostramos; si no, un ícono. .url solo funciona si el archivo existe #}
+                {% if estudiante.foto %}
+                    <img src="{{ estudiante.foto.url }}" alt="Foto de {{ estudiante.nombre_completo }}" class="img-fluid rounded" style="max-height: 220px;">
+                {% else %}
+                    <i class="bi bi-person-circle text-secondary" style="font-size: 7rem;"></i>
+                    <p class="text-muted small mb-0">Sin foto</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ---------- Datos ---------- #}
+    <div class="col-md-9">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white fw-semibold">Datos del estudiante</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Cédula</dt>
+                    <dd class="col-sm-8">{{ estudiante.cedula }}</dd>
+                    <dt class="col-sm-4">Correo</dt>
+                    <dd class="col-sm-8">{{ estudiante.email }}</dd>
+                    <dt class="col-sm-4">Teléfono</dt>
+                    <dd class="col-sm-8">{{ estudiante.telefono|default:"—" }}</dd>
+                    <dt class="col-sm-4">Fecha de nacimiento</dt>
+                    <dd class="col-sm-8">{{ estudiante.fecha_nacimiento|date:"d/m/Y"|default:"—" }}</dd>
+                    <dt class="col-sm-4">Carrera</dt>
+                    <dd class="col-sm-8">{{ estudiante.carrera.codigo }} - {{ estudiante.carrera.nombre }}</dd>
+                    <dt class="col-sm-4">Facultad</dt>
+                    <dd class="col-sm-8">{{ estudiante.carrera.facultad.nombre }}</dd>
+                    <dt class="col-sm-4">Universidad</dt>
+                    <dd class="col-sm-8 mb-0">{{ estudiante.carrera.facultad.universidad.nombre }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------- Matrículas y notas ---------- #}
+<div class="card shadow-sm border-0 mt-3">
+    <div class="card-header bg-white fw-semibold">Matrículas ({{ matriculas|length }})</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Periodo</th><th>Curso</th><th>Sección</th>
+                    <th class="text-center">N1</th><th class="text-center">N2</th><th class="text-center">N3</th>
+                    <th class="text-center">Promedio</th><th class="text-center">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for matricula in matriculas %}
+                    <tr>
+                        <td>{{ matricula.seccion.periodo.nombre }}</td>
+                        <td><a href="{% url 'academico:matricula_detalle' matricula.pk %}">{{ matricula.seccion.curso.nombre }}</a></td>
+                        <td>{{ matricula.seccion.paralelo }} · {{ matricula.seccion.get_jornada_display }}</td>
+                        {# Si la matrícula no tiene nota, matricula.nota falla en silencio y el "if" da Falso #}
+                        {% if matricula.nota %}
+                            <td class="text-center">{{ matricula.nota.n1 }}</td>
+                            <td class="text-center">{{ matricula.nota.n2 }}</td>
+                            <td class="text-center">{{ matricula.nota.n3 }}</td>
+                            <td class="text-center fw-bold">{{ matricula.nota.promedio }}</td>
+                            <td class="text-center">
+                                {% if matricula.nota.estado == "aprobado" %}
+                                    <span class="badge text-bg-success">Aprobado</span>
+                                {% else %}
+                                    <span class="badge text-bg-danger">Reprobado</span>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td colspan="4" class="text-center text-muted">—</td>
+                            <td class="text-center"><span class="badge text-bg-secondary">Sin nota</span></td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-3">El estudiante no tiene matrículas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<a href="{% url 'academico:estudiante_lista' %}" class="btn btn-link mt-3 px-0"><i class="bi bi-arrow-left"></i> Volver al listado</a>
+{% endblock %}
