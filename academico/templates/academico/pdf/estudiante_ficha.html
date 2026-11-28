@@ -77,7 +77,7 @@
         {% endif %}
         <td valign="middle">
             <div class="universidad">{{ universidad.nombre }}</div>
-            <div class="facultad">{{ facultad.nombre }} · {{ universidad.ciudad }}</div>
+            <div class="facultad">{{ facultad.nombre }} - {{ universidad.ciudad }}</div>
         </td>
     </tr>
 </table>
@@ -92,7 +92,7 @@
             <div class="subtitulo">Datos personales</div>
             <table>
                 <tr><td class="etiqueta">Cédula:</td><td class="dato">{{ estudiante.cedula }}</td></tr>
-                <tr><td class="etiqueta">Apellidos y nombres:</td><td class="dato">{{ estudiante.nombre_completo }}</td></tr>
+                <tr><td class="etiqueta">Apellidos y nombres:</td><td class="dato">{{ estudiante.apellidos }} {{ estudiante.nombres }}</td></tr>
                 <tr><td class="etiqueta">Correo electrónico:</td><td class="dato">{{ estudiante.email }}</td></tr>
                 <tr><td class="etiqueta">Teléfono:</td><td class="dato">{{ estudiante.telefono }}</td></tr>
                 <tr><td class="etiqueta">Fecha de nacimiento:</td>
